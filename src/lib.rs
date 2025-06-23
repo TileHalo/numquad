@@ -3,8 +3,9 @@
 use std::fmt;
 
 pub mod geom;
-pub mod quadrature;
 pub mod polynomial;
+pub mod quadrature;
+pub mod qubature;
 
 
 pub trait Integral<I, O> {

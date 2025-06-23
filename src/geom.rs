@@ -26,7 +26,7 @@ pub struct Vector<T, const D: usize>([T; D]);
 pub type Point<const D: usize> = Vector<f64, D>;
 pub type Triangle<const D: usize> = (Point<D>, Point<D>, Point<D>);
 
-const REFERENCE_TRIANGLE: Triangle<2> = (
+pub const REFERENCE_TRIANGLE: Triangle<2> = (
     Vector::<f64, 2>([0.0, 0.0]),
     Vector::<f64, 2>([1.0, 0.0]),
     Vector::<f64, 2>([0.0, 1.0]),
@@ -154,7 +154,7 @@ where
     }
 }
 
-impl<const D: usize> GeomCell<2, D> for Triangle<D> {
+impl GeomCell<2, 2> for Triangle<2> {
     /// Reference cell
     type REFT = Triangle<2>;
 
@@ -163,16 +163,136 @@ impl<const D: usize> GeomCell<2, D> for Triangle<D> {
     }
     /// Jacobian measure to reference cell.
     fn jacobian_meas(self) -> f64 {
-        match D {
-            0..=1 => panic!("This is not possible"),
-            2 => 0.0,
-            3 => 0.0,
-            _ => panic!("Please use feature nönnönnöö"), // This should be translated into macro
-                                                         // tomfoolery
-        }
+
+       let (p1, p2, p3) = self;
+        // Compute edge vectors
+        let v1 = (p2[0] - p1[0], p2[1] - p1[1]);
+        let v2 = (p3[0] - p1[0], p3[1] - p1[1]);
+
+        // Compute determinant which gives twice the area
+        let det = (v1.0 * v2.1) - (v1.1 * v2.0);
+
+        // Jacobian measure (area measure)
+        det.abs()
     }
     /// Map to reference cell
-    fn map_reference(self, p: Point<2>) -> Point<D> {
-        self.0 + (self.1 - self.0) * p[0] + (self.1 - self.0) * p[1]
+    fn map_reference(self, p: Point<2>) -> Point<2> {
+        self.0 + (self.1 - self.0) * p[0] + (self.2 - self.0) * p[1]
+    }
+}
+
+impl GeomCell<2, 3> for Triangle<3> {
+    /// Reference cell
+    type REFT = Triangle<2>;
+
+    fn refcell() -> Self::REFT {
+        REFERENCE_TRIANGLE
+    }
+    /// Jacobian measure to reference cell.
+    fn jacobian_meas(self) -> f64 {
+        let u = self.1 - self.0;
+        let v = self.2 - self.0;
+        let n = u.cross(&v);
+        n.norm()
+    }
+    /// Map to reference cell
+    fn map_reference(self, p: Point<2>) -> Point<3> {
+        self.0 + (self.1 - self.0) * p[0] + (self.2 - self.0) * p[1]
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use assert_approx_eq::assert_approx_eq;
+
+    #[test]
+    fn jacobian_meas_tri_2d_test() {
+        let triangles_2d = vec![
+            (Point::new([0.0, 0.0]), Point::new([1.0, 0.0]), Point::new([0.0, 1.0])),
+            (Point::new([0.0, 0.0]), Point::new([2.0, 0.0]), Point::new([0.0, 2.0])),
+            (Point::new([0.0, 0.0]), Point::new([1.0, 1.0]), Point::new([-1.0, 1.0])),
+            (Point::new([1.0, 1.0]), Point::new([2.0, 1.0]), Point::new([1.0, 2.0])),
+            (Point::new([-1.0, 0.0]), Point::new([0.0, 1.0]), Point::new([-1.0, 1.0])),
+            (Point::new([3.0, 0.0]), Point::new([4.0, 0.0]), Point::new([3.0, 1.0])),
+            (Point::new([0.0, 0.0]), Point::new([0.0, 2.0]), Point::new([3.0, 0.0])),
+            (Point::new([1.0, 0.0]), Point::new([1.0, 2.0]), Point::new([3.0, 0.0])),
+            (Point::new([2.0, 1.0]), Point::new([4.0, 1.0]), Point::new([2.0, 3.0])),
+            (Point::new([1.0, 2.0]), Point::new([3.0, 2.0]), Point::new([1.0, 3.0])),
+        ];
+
+        let expected_measures_2d = [
+            0.5,
+            2.0,
+            1.0,
+            0.5,
+            0.5,
+            0.5,
+            3.0,
+            2.0,
+            2.0,
+            1.0,
+        ];
+
+        for (i, triangle) in triangles_2d.iter().enumerate() {
+            let measure = Triangle::<2>::jacobian_meas(*triangle);
+            assert_approx_eq!(measure, 2.0*expected_measures_2d[i], 1e-4);
+        }
+    }
+
+    #[test]
+    fn jacobian_meas_tri_3d_test() {
+        let triangles_3d = vec![
+            (Point::new([0.0, 0.0, 0.0]), Point::new([1.0, 0.0, 0.0]), Point::new([0.0, 1.0, 0.0])),
+            (Point::new([0.0, 0.0, 0.0]), Point::new([2.0, 0.0, 0.0]), Point::new([0.0, 2.0, 0.0])),
+            (Point::new([0.0, 0.0, 0.0]), Point::new([1.0, 1.0, 0.0]), Point::new([-1.0, 1.0, 0.0])),
+            (Point::new([1.0, 1.0, 0.0]), Point::new([2.0, 1.0, 0.0]), Point::new([1.0, 2.0, 0.0])),
+            (Point::new([-1.0, 0.0, 0.0]), Point::new([0.0, 1.0, 0.0]), Point::new([-1.0, 1.0, 0.0])),
+            (Point::new([3.0, 0.0, 0.0]), Point::new([4.0, 0.0, 0.0]), Point::new([3.0, 1.0, 0.0])),
+            (Point::new([0.0, 0.0, 0.0]), Point::new([0.0, 2.0, 0.0]), Point::new([3.0, 0.0, 0.0])),
+            (Point::new([1.0, 0.0, 0.0]), Point::new([1.0, 2.0, 0.0]), Point::new([3.0, 0.0, 0.0])),
+            (Point::new([2.0, 1.0, 0.0]), Point::new([4.0, 1.0, 0.0]), Point::new([2.0, 3.0, 0.0])),
+            (Point::new([1.0, 2.0, 0.0]), Point::new([3.0, 2.0, 0.0]), Point::new([1.0, 3.0, 0.0])),
+        ];
+
+        let expected_measures_3d = [
+            0.5,
+            2.0,
+            1.0,
+            0.5,
+            0.5,
+            0.5,
+            3.0,
+            2.0,
+            2.0,
+            1.0,
+        ];
+
+        for (i, triangle) in triangles_3d.iter().enumerate() {
+            let measure = Triangle::<3>::jacobian_meas(*triangle);
+            assert_approx_eq!(measure, 2.0*expected_measures_3d[i], 1e-4);
+        }
+    }
+
+    #[test]
+    fn reference_map_test() {
+        let triangles_2d = [
+            (Point::new([0.0, 0.0]), Point::new([1.0, 0.0]), Point::new([0.0, 1.0])),
+            (Point::new([0.0, 0.0]), Point::new([2.0, 0.0]), Point::new([0.0, 2.0])),
+            (Point::new([0.0, 0.0]), Point::new([1.0, 1.0]), Point::new([-1.0, 1.0])),
+            (Point::new([1.0, 1.0]), Point::new([2.0, 1.0]), Point::new([1.0, 2.0])),
+            (Point::new([-1.0, 0.0]), Point::new([0.0, 1.0]), Point::new([-1.0, 1.0])),
+            (Point::new([3.0, 0.0]), Point::new([4.0, 0.0]), Point::new([3.0, 1.0])),
+            (Point::new([0.0, 0.0]), Point::new([0.0, 2.0]), Point::new([3.0, 0.0])),
+            (Point::new([1.0, 0.0]), Point::new([1.0, 2.0]), Point::new([3.0, 0.0])),
+            (Point::new([2.0, 1.0]), Point::new([4.0, 1.0]), Point::new([2.0, 3.0])),
+            (Point::new([1.0, 2.0]), Point::new([3.0, 2.0]), Point::new([1.0, 3.0])),
+        ];
+
+        for tri in triangles_2d {
+            assert_eq!(tri.0, Triangle::<2>::map_reference(tri, Point::new([0.0, 0.0])));
+            assert_eq!(tri.1, Triangle::<2>::map_reference(tri, Point::new([1.0, 0.0])));
+            assert_eq!(tri.2, Triangle::<2>::map_reference(tri, Point::new([0.0, 1.0])));
+        }
     }
 }
