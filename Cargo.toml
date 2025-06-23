@@ -1,0 +1,21 @@
+[package]
+name = "numquad"
+version = "0.1.0"
+edition = "2021"
+authors = ["Leo Lahti leo.lahti1@gmail.com"]
+description = "Numerical integration quadratures like Gauss-Legendre and Tanh-Sinh"
+repository = "https://github.com/TileHalo/numquad"
+
+license = "MIT or Apache-2.0"
+# Using latex in the docs to display formulas
+[package.metadata.docs.rs]
+rustdoc-args = [ "--html-in-header", "katex-header.html" ]
+
+[dependencies]
+itertools = "0.14.0"
+num = "0.4.3"
+num-complex = "0.4.6"
+num-traits = "0.2.19"
+
+[dev-dependencies]
+assert_approx_eq = "1.1.0"
