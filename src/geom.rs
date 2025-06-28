@@ -29,12 +29,24 @@ pub type Point<const D: usize> = Vector<f64, D>;
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Triangle<const D: usize>(Point<D>, Point<D>, Point<D>);
 
+/// Standhard tetrahedron in D-dimensional space
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Tetrahedron<const D: usize>(Point<D>, Point<D>, Point<D>, Point<D>);
+
+/// Reference triangle (0, 0), (1, 0), (0, 1)
 pub const REFERENCE_TRIANGLE: Triangle<2> = Triangle(
     Vector::<f64, 2>([0.0, 0.0]),
     Vector::<f64, 2>([1.0, 0.0]),
     Vector::<f64, 2>([0.0, 1.0]),
 );
 
+/// Reference tetrahedron
+pub const REFERENCE_TETRAHEDRON: Tetrahedron<3> = Tetrahedron(
+    Vector::<f64, 3>([0.0, 0.0, 0.0]),
+    Vector::<f64, 3>([1.0, 0.0, 0.0]),
+    Vector::<f64, 3>([0.0, 1.0, 0.0]),
+    Vector::<f64, 3>([0.0, 0.0, 1.0]),
+);
 
 impl<T, const D: usize> Vector<T, D> {
     /// Build new vector based on
@@ -159,9 +171,15 @@ where
     }
 }
 
-impl <const D: usize> Triangle<D> {
+impl<const D: usize> Triangle<D> {
     pub fn new(a: Point<D>, b: Point<D>, c: Point<D>) -> Self {
         Triangle(a, b, c)
+    }
+}
+
+impl<const D: usize> Tetrahedron<D> {
+    pub fn new(a: Point<D>, b: Point<D>, c: Point<D>, d: Point<D>) -> Self {
+        Tetrahedron(a, b, c, d)
     }
 }
 
@@ -174,8 +192,7 @@ impl GeomCell<2, 2> for Triangle<2> {
     }
     /// Jacobian measure to reference cell.
     fn jacobian_meas(self) -> f64 {
-
-       let Triangle(p1, p2, p3) = self;
+        let Triangle(p1, p2, p3) = self;
         // Compute edge vectors
         let v1 = (p2[0] - p1[0], p2[1] - p1[1]);
         let v2 = (p3[0] - p1[0], p3[1] - p1[1]);
@@ -212,6 +229,41 @@ impl GeomCell<2, 3> for Triangle<3> {
     }
 }
 
+impl GeomCell<3, 3> for Tetrahedron<3> {
+    type REFT = Tetrahedron<3>;
+
+    fn refcell() -> Self::REFT {
+        REFERENCE_TETRAHEDRON
+    }
+
+    fn jacobian_meas(self) -> f64 {
+        // Used AI to expand this
+        let Tetrahedron(p1, p2, p3, p4) = self;
+
+        // Calculate the differences for the matrix
+        let x_diff_1 = p2.0[0] - p1.0[0];
+        let x_diff_2 = p3.0[0] - p1.0[0];
+        let x_diff_3 = p4.0[0] - p1.0[0];
+
+        let y_diff_1 = p2.0[1] - p1.0[1];
+        let y_diff_2 = p3.0[1] - p1.0[1];
+        let y_diff_3 = p4.0[1] - p1.0[1];
+
+        let z_diff_1 = p2.0[2] - p1.0[2];
+        let z_diff_2 = p3.0[2] - p1.0[2];
+        let z_diff_3 = p4.0[2] - p1.0[2];
+
+        // Compute determinant via expanded formula
+        f64::abs(x_diff_1 * (y_diff_2 * z_diff_3 - z_diff_2 * y_diff_3)
+            - x_diff_2 * (y_diff_1 * z_diff_3 - z_diff_1 * y_diff_3)
+            + x_diff_3 * (y_diff_1 * z_diff_2 - z_diff_1 * y_diff_2))
+    }
+
+    fn map_reference(self, p: Point<3>) -> Point<3> {
+        self.1 * p[0] + self.2 * p[1] + self.3 * p[2] + self.0 * (1.0 - p[1] - p[2] - p[0])
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -220,90 +272,368 @@ mod tests {
     #[test]
     fn jacobian_meas_tri_2d_test() {
         let triangles_2d = vec![
-            Triangle(Point::new([0.0, 0.0]), Point::new([1.0, 0.0]), Point::new([0.0, 1.0])),
-            Triangle(Point::new([0.0, 0.0]), Point::new([2.0, 0.0]), Point::new([0.0, 2.0])),
-            Triangle(Point::new([0.0, 0.0]), Point::new([1.0, 1.0]), Point::new([-1.0, 1.0])),
-            Triangle(Point::new([1.0, 1.0]), Point::new([2.0, 1.0]), Point::new([1.0, 2.0])),
-            Triangle(Point::new([-1.0, 0.0]), Point::new([0.0, 1.0]), Point::new([-1.0, 1.0])),
-            Triangle(Point::new([3.0, 0.0]), Point::new([4.0, 0.0]), Point::new([3.0, 1.0])),
-            Triangle(Point::new([0.0, 0.0]), Point::new([0.0, 2.0]), Point::new([3.0, 0.0])),
-            Triangle(Point::new([1.0, 0.0]), Point::new([1.0, 2.0]), Point::new([3.0, 0.0])),
-            Triangle(Point::new([2.0, 1.0]), Point::new([4.0, 1.0]), Point::new([2.0, 3.0])),
-            Triangle(Point::new([1.0, 2.0]), Point::new([3.0, 2.0]), Point::new([1.0, 3.0])),
+            Triangle(
+                Point::new([0.0, 0.0]),
+                Point::new([1.0, 0.0]),
+                Point::new([0.0, 1.0]),
+            ),
+            Triangle(
+                Point::new([0.0, 0.0]),
+                Point::new([2.0, 0.0]),
+                Point::new([0.0, 2.0]),
+            ),
+            Triangle(
+                Point::new([0.0, 0.0]),
+                Point::new([1.0, 1.0]),
+                Point::new([-1.0, 1.0]),
+            ),
+            Triangle(
+                Point::new([1.0, 1.0]),
+                Point::new([2.0, 1.0]),
+                Point::new([1.0, 2.0]),
+            ),
+            Triangle(
+                Point::new([-1.0, 0.0]),
+                Point::new([0.0, 1.0]),
+                Point::new([-1.0, 1.0]),
+            ),
+            Triangle(
+                Point::new([3.0, 0.0]),
+                Point::new([4.0, 0.0]),
+                Point::new([3.0, 1.0]),
+            ),
+            Triangle(
+                Point::new([0.0, 0.0]),
+                Point::new([0.0, 2.0]),
+                Point::new([3.0, 0.0]),
+            ),
+            Triangle(
+                Point::new([1.0, 0.0]),
+                Point::new([1.0, 2.0]),
+                Point::new([3.0, 0.0]),
+            ),
+            Triangle(
+                Point::new([2.0, 1.0]),
+                Point::new([4.0, 1.0]),
+                Point::new([2.0, 3.0]),
+            ),
+            Triangle(
+                Point::new([1.0, 2.0]),
+                Point::new([3.0, 2.0]),
+                Point::new([1.0, 3.0]),
+            ),
         ];
 
-        let expected_measures_2d = [
-            0.5,
-            2.0,
-            1.0,
-            0.5,
-            0.5,
-            0.5,
-            3.0,
-            2.0,
-            2.0,
-            1.0,
-        ];
+        let expected_measures_2d = [0.5, 2.0, 1.0, 0.5, 0.5, 0.5, 3.0, 2.0, 2.0, 1.0];
 
         for (i, triangle) in triangles_2d.iter().enumerate() {
             let measure = Triangle::<2>::jacobian_meas(*triangle);
-            assert_approx_eq!(measure, 2.0*expected_measures_2d[i], 1e-4);
+            assert_approx_eq!(measure, 2.0 * expected_measures_2d[i], 1e-4);
         }
     }
 
     #[test]
     fn jacobian_meas_tri_3d_test() {
         let triangles_3d = vec![
-            Triangle(Point::new([0.0, 0.0, 0.0]), Point::new([1.0, 0.0, 0.0]), Point::new([0.0, 1.0, 0.0])),
-            Triangle(Point::new([0.0, 0.0, 0.0]), Point::new([2.0, 0.0, 0.0]), Point::new([0.0, 2.0, 0.0])),
-            Triangle(Point::new([0.0, 0.0, 0.0]), Point::new([1.0, 1.0, 0.0]), Point::new([-1.0, 1.0, 0.0])),
-            Triangle(Point::new([1.0, 1.0, 0.0]), Point::new([2.0, 1.0, 0.0]), Point::new([1.0, 2.0, 0.0])),
-            Triangle(Point::new([-1.0, 0.0, 0.0]), Point::new([0.0, 1.0, 0.0]), Point::new([-1.0, 1.0, 0.0])),
-            Triangle(Point::new([3.0, 0.0, 0.0]), Point::new([4.0, 0.0, 0.0]), Point::new([3.0, 1.0, 0.0])),
-            Triangle(Point::new([0.0, 0.0, 0.0]), Point::new([0.0, 2.0, 0.0]), Point::new([3.0, 0.0, 0.0])),
-            Triangle(Point::new([1.0, 0.0, 0.0]), Point::new([1.0, 2.0, 0.0]), Point::new([3.0, 0.0, 0.0])),
-            Triangle(Point::new([2.0, 1.0, 0.0]), Point::new([4.0, 1.0, 0.0]), Point::new([2.0, 3.0, 0.0])),
-            Triangle(Point::new([1.0, 2.0, 0.0]), Point::new([3.0, 2.0, 0.0]), Point::new([1.0, 3.0, 0.0])),
+            Triangle(
+                Point::new([0.0, 0.0, 0.0]),
+                Point::new([1.0, 0.0, 0.0]),
+                Point::new([0.0, 1.0, 0.0]),
+            ),
+            Triangle(
+                Point::new([0.0, 0.0, 0.0]),
+                Point::new([2.0, 0.0, 0.0]),
+                Point::new([0.0, 2.0, 0.0]),
+            ),
+            Triangle(
+                Point::new([0.0, 0.0, 0.0]),
+                Point::new([1.0, 1.0, 0.0]),
+                Point::new([-1.0, 1.0, 0.0]),
+            ),
+            Triangle(
+                Point::new([1.0, 1.0, 0.0]),
+                Point::new([2.0, 1.0, 0.0]),
+                Point::new([1.0, 2.0, 0.0]),
+            ),
+            Triangle(
+                Point::new([-1.0, 0.0, 0.0]),
+                Point::new([0.0, 1.0, 0.0]),
+                Point::new([-1.0, 1.0, 0.0]),
+            ),
+            Triangle(
+                Point::new([3.0, 0.0, 0.0]),
+                Point::new([4.0, 0.0, 0.0]),
+                Point::new([3.0, 1.0, 0.0]),
+            ),
+            Triangle(
+                Point::new([0.0, 0.0, 0.0]),
+                Point::new([0.0, 2.0, 0.0]),
+                Point::new([3.0, 0.0, 0.0]),
+            ),
+            Triangle(
+                Point::new([1.0, 0.0, 0.0]),
+                Point::new([1.0, 2.0, 0.0]),
+                Point::new([3.0, 0.0, 0.0]),
+            ),
+            Triangle(
+                Point::new([2.0, 1.0, 0.0]),
+                Point::new([4.0, 1.0, 0.0]),
+                Point::new([2.0, 3.0, 0.0]),
+            ),
+            Triangle(
+                Point::new([1.0, 2.0, 0.0]),
+                Point::new([3.0, 2.0, 0.0]),
+                Point::new([1.0, 3.0, 0.0]),
+            ),
         ];
 
-        let expected_measures_3d = [
-            0.5,
-            2.0,
-            1.0,
-            0.5,
-            0.5,
-            0.5,
-            3.0,
-            2.0,
-            2.0,
-            1.0,
-        ];
+        let expected_measures_3d = [0.5, 2.0, 1.0, 0.5, 0.5, 0.5, 3.0, 2.0, 2.0, 1.0];
 
         for (i, triangle) in triangles_3d.iter().enumerate() {
             let measure = Triangle::<3>::jacobian_meas(*triangle);
-            assert_approx_eq!(measure, 2.0*expected_measures_3d[i], 1e-4);
+            assert_approx_eq!(measure, 2.0 * expected_measures_3d[i], 1e-4);
         }
     }
 
     #[test]
-    fn reference_map_test() {
+    fn reference_map_tri_test() {
         let triangles_2d = [
-            Triangle(Point::new([0.0, 0.0]), Point::new([1.0, 0.0]), Point::new([0.0, 1.0])),
-            Triangle(Point::new([0.0, 0.0]), Point::new([2.0, 0.0]), Point::new([0.0, 2.0])),
-            Triangle(Point::new([0.0, 0.0]), Point::new([1.0, 1.0]), Point::new([-1.0, 1.0])),
-            Triangle(Point::new([1.0, 1.0]), Point::new([2.0, 1.0]), Point::new([1.0, 2.0])),
-            Triangle(Point::new([-1.0, 0.0]), Point::new([0.0, 1.0]), Point::new([-1.0, 1.0])),
-            Triangle(Point::new([3.0, 0.0]), Point::new([4.0, 0.0]), Point::new([3.0, 1.0])),
-            Triangle(Point::new([0.0, 0.0]), Point::new([0.0, 2.0]), Point::new([3.0, 0.0])),
-            Triangle(Point::new([1.0, 0.0]), Point::new([1.0, 2.0]), Point::new([3.0, 0.0])),
-            Triangle(Point::new([2.0, 1.0]), Point::new([4.0, 1.0]), Point::new([2.0, 3.0])),
-            Triangle(Point::new([1.0, 2.0]), Point::new([3.0, 2.0]), Point::new([1.0, 3.0])),
+            Triangle(
+                Point::new([0.0, 0.0]),
+                Point::new([1.0, 0.0]),
+                Point::new([0.0, 1.0]),
+            ),
+            Triangle(
+                Point::new([0.0, 0.0]),
+                Point::new([2.0, 0.0]),
+                Point::new([0.0, 2.0]),
+            ),
+            Triangle(
+                Point::new([0.0, 0.0]),
+                Point::new([1.0, 1.0]),
+                Point::new([-1.0, 1.0]),
+            ),
+            Triangle(
+                Point::new([1.0, 1.0]),
+                Point::new([2.0, 1.0]),
+                Point::new([1.0, 2.0]),
+            ),
+            Triangle(
+                Point::new([-1.0, 0.0]),
+                Point::new([0.0, 1.0]),
+                Point::new([-1.0, 1.0]),
+            ),
+            Triangle(
+                Point::new([3.0, 0.0]),
+                Point::new([4.0, 0.0]),
+                Point::new([3.0, 1.0]),
+            ),
+            Triangle(
+                Point::new([0.0, 0.0]),
+                Point::new([0.0, 2.0]),
+                Point::new([3.0, 0.0]),
+            ),
+            Triangle(
+                Point::new([1.0, 0.0]),
+                Point::new([1.0, 2.0]),
+                Point::new([3.0, 0.0]),
+            ),
+            Triangle(
+                Point::new([2.0, 1.0]),
+                Point::new([4.0, 1.0]),
+                Point::new([2.0, 3.0]),
+            ),
+            Triangle(
+                Point::new([1.0, 2.0]),
+                Point::new([3.0, 2.0]),
+                Point::new([1.0, 3.0]),
+            ),
         ];
 
         for tri in triangles_2d {
-            assert_eq!(tri.0, Triangle::<2>::map_reference(tri, Point::new([0.0, 0.0])));
-            assert_eq!(tri.1, Triangle::<2>::map_reference(tri, Point::new([1.0, 0.0])));
-            assert_eq!(tri.2, Triangle::<2>::map_reference(tri, Point::new([0.0, 1.0])));
+            assert_eq!(
+                tri.0,
+                Triangle::<2>::map_reference(tri, Point::new([0.0, 0.0]))
+            );
+            assert_eq!(
+                tri.1,
+                Triangle::<2>::map_reference(tri, Point::new([1.0, 0.0]))
+            );
+            assert_eq!(
+                tri.2,
+                Triangle::<2>::map_reference(tri, Point::new([0.0, 1.0]))
+            );
         }
     }
+
+    #[test]
+    fn jacobian_meas_tet_test() {
+        let tetrahedrons = [
+            Tetrahedron(
+                Point::new([0.0, 0.0, 0.0]),
+                Point::new([1.0, 0.0, 0.0]),
+                Point::new([0.0, 1.0, 0.0]),
+                Point::new([0.0, 0.0, 1.0]),
+            ),
+            Tetrahedron(
+                Point::new([0.0, 0.0, 0.0]),
+                Point::new([1.0, 0.0, 0.0]),
+                Point::new([0.0, 2.0, 0.0]),
+                Point::new([0.0, 0.0, 2.0]),
+            ),
+            Tetrahedron(
+                Point::new([1.0, 1.0, 1.0]),
+                Point::new([2.0, 1.0, 1.0]),
+                Point::new([1.0, 2.0, 1.0]),
+                Point::new([1.0, 1.0, 2.0]),
+            ),
+            Tetrahedron(
+                Point::new([0.0, 0.0, 0.0]),
+                Point::new([3.0, 0.0, 0.0]),
+                Point::new([0.0, 1.0, 0.0]),
+                Point::new([0.0, 0.0, 4.0]),
+            ),
+            Tetrahedron(
+                Point::new([1.0, 2.0, 3.0]),
+                Point::new([4.0, 5.0, 6.0]),
+                Point::new([7.0, 8.0, 9.0]),
+                Point::new([10.0, 11.0, 12.0]),
+            ),
+            Tetrahedron(
+                Point::new([0.0, 0.0, 0.0]),
+                Point::new([1.0, 0.0, 2.0]),
+                Point::new([0.0, 2.0, 2.0]),
+                Point::new([1.0, 2.0, 0.0]),
+            ),
+            Tetrahedron(
+                Point::new([-1.0, -1.0, -1.0]),
+                Point::new([1.0, -1.0, -1.0]),
+                Point::new([-1.0, 1.0, -1.0]),
+                Point::new([-1.0, -1.0, 1.0]),
+            ),
+            Tetrahedron(
+                Point::new([2.0, 3.0, 4.0]),
+                Point::new([5.0, 3.0, 4.0]),
+                Point::new([2.0, 6.0, 4.0]),
+                Point::new([2.0, 3.0, 7.0]),
+            ),
+            Tetrahedron(
+                Point::new([1.0, 1.0, 0.0]),
+                Point::new([4.0, 1.0, 0.0]),
+                Point::new([1.0, 5.0, 0.0]),
+                Point::new([1.0, 1.0, 3.0]),
+            ),
+            Tetrahedron(
+                Point::new([0.0, 0.0, 0.0]),
+                Point::new([2.0, 0.0, 0.0]),
+                Point::new([0.0, 3.0, 0.0]),
+                Point::new([0.0, 0.0, 5.0]),
+            ),
+        ];
+
+        let expected = [
+            1.0,
+            4.0, 1.0,
+            12.0,
+            0.0,
+            8.0,
+            8.0,
+            27.0,
+            36.0,
+            30.0,
+        ];
+
+        for (i, tetrahedron) in tetrahedrons.iter().enumerate() {
+            assert_approx_eq!(tetrahedron.jacobian_meas(), expected[i], 1e-4);
+        }
+    }
+
+    #[test]
+    fn reference_map_tet_test() {
+        let tetrahedrons = [
+            Tetrahedron(
+                Point::new([0.0, 0.0, 0.0]),
+                Point::new([1.0, 0.0, 0.0]),
+                Point::new([0.0, 1.0, 0.0]),
+                Point::new([0.0, 0.0, 1.0]),
+            ),
+            Tetrahedron(
+                Point::new([0.0, 0.0, 0.0]),
+                Point::new([1.0, 0.0, 0.0]),
+                Point::new([0.0, 2.0, 0.0]),
+                Point::new([0.0, 0.0, 2.0]),
+            ),
+            Tetrahedron(
+                Point::new([1.0, 1.0, 1.0]),
+                Point::new([2.0, 1.0, 1.0]),
+                Point::new([1.0, 2.0, 1.0]),
+                Point::new([1.0, 1.0, 2.0]),
+            ),
+            Tetrahedron(
+                Point::new([0.0, 0.0, 0.0]),
+                Point::new([3.0, 0.0, 0.0]),
+                Point::new([0.0, 1.0, 0.0]),
+                Point::new([0.0, 0.0, 4.0]),
+            ),
+            Tetrahedron(
+                Point::new([1.0, 2.0, 3.0]),
+                Point::new([4.0, 5.0, 6.0]),
+                Point::new([7.0, 8.0, 9.0]),
+                Point::new([10.0, 11.0, 12.0]),
+            ),
+            Tetrahedron(
+                Point::new([0.0, 0.0, 0.0]),
+                Point::new([1.0, 0.0, 2.0]),
+                Point::new([0.0, 2.0, 2.0]),
+                Point::new([1.0, 2.0, 0.0]),
+            ),
+            Tetrahedron(
+                Point::new([-1.0, -1.0, -1.0]),
+                Point::new([1.0, -1.0, -1.0]),
+                Point::new([-1.0, 1.0, -1.0]),
+                Point::new([-1.0, -1.0, 1.0]),
+            ),
+            Tetrahedron(
+                Point::new([2.0, 3.0, 4.0]),
+                Point::new([5.0, 3.0, 4.0]),
+                Point::new([2.0, 6.0, 4.0]),
+                Point::new([2.0, 3.0, 7.0]),
+            ),
+            Tetrahedron(
+                Point::new([1.0, 1.0, 0.0]),
+                Point::new([4.0, 1.0, 0.0]),
+                Point::new([1.0, 5.0, 0.0]),
+                Point::new([1.0, 1.0, 3.0]),
+            ),
+            Tetrahedron(
+                Point::new([0.0, 0.0, 0.0]),
+                Point::new([2.0, 0.0, 0.0]),
+                Point::new([0.0, 3.0, 0.0]),
+                Point::new([0.0, 0.0, 5.0]),
+            ),
+        ];
+
+
+        for tet in tetrahedrons {
+            assert_eq!(
+                tet.0,
+                Tetrahedron::map_reference(tet, Point::new([0.0, 0.0, 0.0]))
+            );
+            assert_eq!(
+                tet.1,
+                Tetrahedron::map_reference(tet, Point::new([1.0, 0.0, 0.0]))
+            );
+            assert_eq!(
+                tet.2,
+                Tetrahedron::map_reference(tet, Point::new([0.0, 1.0, 0.0]))
+            );
+            assert_eq!(
+                tet.3,
+                Tetrahedron::map_reference(tet, Point::new([0.0, 0.0, 1.0]))
+            );
+        }
+    }
+
+
+
 }
