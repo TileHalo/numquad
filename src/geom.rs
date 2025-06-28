@@ -24,15 +24,20 @@ pub trait GeomCell<const N: usize, const M: usize> {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Vector<T, const D: usize>([T; D]);
 pub type Point<const D: usize> = Vector<f64, D>;
-pub type Triangle<const D: usize> = (Point<D>, Point<D>, Point<D>);
 
-pub const REFERENCE_TRIANGLE: Triangle<2> = (
+/// Standhard triangle in D-dimensional space
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Triangle<const D: usize>(Point<D>, Point<D>, Point<D>);
+
+pub const REFERENCE_TRIANGLE: Triangle<2> = Triangle(
     Vector::<f64, 2>([0.0, 0.0]),
     Vector::<f64, 2>([1.0, 0.0]),
     Vector::<f64, 2>([0.0, 1.0]),
 );
 
+
 impl<T, const D: usize> Vector<T, D> {
+    /// Build new vector based on
     pub fn new(a: [T; D]) -> Self {
         Vector(a)
     }
@@ -154,6 +159,12 @@ where
     }
 }
 
+impl <const D: usize> Triangle<D> {
+    pub fn new(a: Point<D>, b: Point<D>, c: Point<D>) -> Self {
+        Triangle(a, b, c)
+    }
+}
+
 impl GeomCell<2, 2> for Triangle<2> {
     /// Reference cell
     type REFT = Triangle<2>;
@@ -164,7 +175,7 @@ impl GeomCell<2, 2> for Triangle<2> {
     /// Jacobian measure to reference cell.
     fn jacobian_meas(self) -> f64 {
 
-       let (p1, p2, p3) = self;
+       let Triangle(p1, p2, p3) = self;
         // Compute edge vectors
         let v1 = (p2[0] - p1[0], p2[1] - p1[1]);
         let v2 = (p3[0] - p1[0], p3[1] - p1[1]);
@@ -209,16 +220,16 @@ mod tests {
     #[test]
     fn jacobian_meas_tri_2d_test() {
         let triangles_2d = vec![
-            (Point::new([0.0, 0.0]), Point::new([1.0, 0.0]), Point::new([0.0, 1.0])),
-            (Point::new([0.0, 0.0]), Point::new([2.0, 0.0]), Point::new([0.0, 2.0])),
-            (Point::new([0.0, 0.0]), Point::new([1.0, 1.0]), Point::new([-1.0, 1.0])),
-            (Point::new([1.0, 1.0]), Point::new([2.0, 1.0]), Point::new([1.0, 2.0])),
-            (Point::new([-1.0, 0.0]), Point::new([0.0, 1.0]), Point::new([-1.0, 1.0])),
-            (Point::new([3.0, 0.0]), Point::new([4.0, 0.0]), Point::new([3.0, 1.0])),
-            (Point::new([0.0, 0.0]), Point::new([0.0, 2.0]), Point::new([3.0, 0.0])),
-            (Point::new([1.0, 0.0]), Point::new([1.0, 2.0]), Point::new([3.0, 0.0])),
-            (Point::new([2.0, 1.0]), Point::new([4.0, 1.0]), Point::new([2.0, 3.0])),
-            (Point::new([1.0, 2.0]), Point::new([3.0, 2.0]), Point::new([1.0, 3.0])),
+            Triangle(Point::new([0.0, 0.0]), Point::new([1.0, 0.0]), Point::new([0.0, 1.0])),
+            Triangle(Point::new([0.0, 0.0]), Point::new([2.0, 0.0]), Point::new([0.0, 2.0])),
+            Triangle(Point::new([0.0, 0.0]), Point::new([1.0, 1.0]), Point::new([-1.0, 1.0])),
+            Triangle(Point::new([1.0, 1.0]), Point::new([2.0, 1.0]), Point::new([1.0, 2.0])),
+            Triangle(Point::new([-1.0, 0.0]), Point::new([0.0, 1.0]), Point::new([-1.0, 1.0])),
+            Triangle(Point::new([3.0, 0.0]), Point::new([4.0, 0.0]), Point::new([3.0, 1.0])),
+            Triangle(Point::new([0.0, 0.0]), Point::new([0.0, 2.0]), Point::new([3.0, 0.0])),
+            Triangle(Point::new([1.0, 0.0]), Point::new([1.0, 2.0]), Point::new([3.0, 0.0])),
+            Triangle(Point::new([2.0, 1.0]), Point::new([4.0, 1.0]), Point::new([2.0, 3.0])),
+            Triangle(Point::new([1.0, 2.0]), Point::new([3.0, 2.0]), Point::new([1.0, 3.0])),
         ];
 
         let expected_measures_2d = [
@@ -243,16 +254,16 @@ mod tests {
     #[test]
     fn jacobian_meas_tri_3d_test() {
         let triangles_3d = vec![
-            (Point::new([0.0, 0.0, 0.0]), Point::new([1.0, 0.0, 0.0]), Point::new([0.0, 1.0, 0.0])),
-            (Point::new([0.0, 0.0, 0.0]), Point::new([2.0, 0.0, 0.0]), Point::new([0.0, 2.0, 0.0])),
-            (Point::new([0.0, 0.0, 0.0]), Point::new([1.0, 1.0, 0.0]), Point::new([-1.0, 1.0, 0.0])),
-            (Point::new([1.0, 1.0, 0.0]), Point::new([2.0, 1.0, 0.0]), Point::new([1.0, 2.0, 0.0])),
-            (Point::new([-1.0, 0.0, 0.0]), Point::new([0.0, 1.0, 0.0]), Point::new([-1.0, 1.0, 0.0])),
-            (Point::new([3.0, 0.0, 0.0]), Point::new([4.0, 0.0, 0.0]), Point::new([3.0, 1.0, 0.0])),
-            (Point::new([0.0, 0.0, 0.0]), Point::new([0.0, 2.0, 0.0]), Point::new([3.0, 0.0, 0.0])),
-            (Point::new([1.0, 0.0, 0.0]), Point::new([1.0, 2.0, 0.0]), Point::new([3.0, 0.0, 0.0])),
-            (Point::new([2.0, 1.0, 0.0]), Point::new([4.0, 1.0, 0.0]), Point::new([2.0, 3.0, 0.0])),
-            (Point::new([1.0, 2.0, 0.0]), Point::new([3.0, 2.0, 0.0]), Point::new([1.0, 3.0, 0.0])),
+            Triangle(Point::new([0.0, 0.0, 0.0]), Point::new([1.0, 0.0, 0.0]), Point::new([0.0, 1.0, 0.0])),
+            Triangle(Point::new([0.0, 0.0, 0.0]), Point::new([2.0, 0.0, 0.0]), Point::new([0.0, 2.0, 0.0])),
+            Triangle(Point::new([0.0, 0.0, 0.0]), Point::new([1.0, 1.0, 0.0]), Point::new([-1.0, 1.0, 0.0])),
+            Triangle(Point::new([1.0, 1.0, 0.0]), Point::new([2.0, 1.0, 0.0]), Point::new([1.0, 2.0, 0.0])),
+            Triangle(Point::new([-1.0, 0.0, 0.0]), Point::new([0.0, 1.0, 0.0]), Point::new([-1.0, 1.0, 0.0])),
+            Triangle(Point::new([3.0, 0.0, 0.0]), Point::new([4.0, 0.0, 0.0]), Point::new([3.0, 1.0, 0.0])),
+            Triangle(Point::new([0.0, 0.0, 0.0]), Point::new([0.0, 2.0, 0.0]), Point::new([3.0, 0.0, 0.0])),
+            Triangle(Point::new([1.0, 0.0, 0.0]), Point::new([1.0, 2.0, 0.0]), Point::new([3.0, 0.0, 0.0])),
+            Triangle(Point::new([2.0, 1.0, 0.0]), Point::new([4.0, 1.0, 0.0]), Point::new([2.0, 3.0, 0.0])),
+            Triangle(Point::new([1.0, 2.0, 0.0]), Point::new([3.0, 2.0, 0.0]), Point::new([1.0, 3.0, 0.0])),
         ];
 
         let expected_measures_3d = [
@@ -277,16 +288,16 @@ mod tests {
     #[test]
     fn reference_map_test() {
         let triangles_2d = [
-            (Point::new([0.0, 0.0]), Point::new([1.0, 0.0]), Point::new([0.0, 1.0])),
-            (Point::new([0.0, 0.0]), Point::new([2.0, 0.0]), Point::new([0.0, 2.0])),
-            (Point::new([0.0, 0.0]), Point::new([1.0, 1.0]), Point::new([-1.0, 1.0])),
-            (Point::new([1.0, 1.0]), Point::new([2.0, 1.0]), Point::new([1.0, 2.0])),
-            (Point::new([-1.0, 0.0]), Point::new([0.0, 1.0]), Point::new([-1.0, 1.0])),
-            (Point::new([3.0, 0.0]), Point::new([4.0, 0.0]), Point::new([3.0, 1.0])),
-            (Point::new([0.0, 0.0]), Point::new([0.0, 2.0]), Point::new([3.0, 0.0])),
-            (Point::new([1.0, 0.0]), Point::new([1.0, 2.0]), Point::new([3.0, 0.0])),
-            (Point::new([2.0, 1.0]), Point::new([4.0, 1.0]), Point::new([2.0, 3.0])),
-            (Point::new([1.0, 2.0]), Point::new([3.0, 2.0]), Point::new([1.0, 3.0])),
+            Triangle(Point::new([0.0, 0.0]), Point::new([1.0, 0.0]), Point::new([0.0, 1.0])),
+            Triangle(Point::new([0.0, 0.0]), Point::new([2.0, 0.0]), Point::new([0.0, 2.0])),
+            Triangle(Point::new([0.0, 0.0]), Point::new([1.0, 1.0]), Point::new([-1.0, 1.0])),
+            Triangle(Point::new([1.0, 1.0]), Point::new([2.0, 1.0]), Point::new([1.0, 2.0])),
+            Triangle(Point::new([-1.0, 0.0]), Point::new([0.0, 1.0]), Point::new([-1.0, 1.0])),
+            Triangle(Point::new([3.0, 0.0]), Point::new([4.0, 0.0]), Point::new([3.0, 1.0])),
+            Triangle(Point::new([0.0, 0.0]), Point::new([0.0, 2.0]), Point::new([3.0, 0.0])),
+            Triangle(Point::new([1.0, 0.0]), Point::new([1.0, 2.0]), Point::new([3.0, 0.0])),
+            Triangle(Point::new([2.0, 1.0]), Point::new([4.0, 1.0]), Point::new([2.0, 3.0])),
+            Triangle(Point::new([1.0, 2.0]), Point::new([3.0, 2.0]), Point::new([1.0, 3.0])),
         ];
 
         for tri in triangles_2d {

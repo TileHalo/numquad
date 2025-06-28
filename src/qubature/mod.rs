@@ -141,37 +141,37 @@ mod tests {
         let quadrature = GaussTriQuadrature::new(5);
 
         let triangles = vec![
-            (
+            Triangle::new(
                 Point::new([0.0, 0.0]),
                 Point::new([1.0, 0.0]),
                 Point::new([0.0, 1.0]),
             ),
-            (
+            Triangle::new(
                 Point::new([0.0, 0.0]),
                 Point::new([2.0, 0.0]),
                 Point::new([0.0, 2.0]),
             ),
-            (
+            Triangle::new(
                 Point::new([0.0, 0.0]),
                 Point::new([1.0, 1.0]),
                 Point::new([-1.0, 1.0]),
             ),
-            (
+            Triangle::new(
                 Point::new([1.0, 1.0]),
                 Point::new([2.0, 1.0]),
                 Point::new([1.0, 2.0]),
             ),
-            (
+            Triangle::new(
                 Point::new([-1.0, 0.0]),
                 Point::new([0.0, 1.0]),
                 Point::new([-1.0, 1.0]),
             ),
-            (
+            Triangle::new(
                 Point::new([3.0, 0.0]),
                 Point::new([4.0, 0.0]),
                 Point::new([3.0, 1.0]),
             ),
-            (
+            Triangle::new(
                 Point::new([0.0, 0.0]),
                 Point::new([0.0, 2.0]),
                 Point::new([3.0, 0.0]),
