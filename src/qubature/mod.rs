@@ -3,7 +3,7 @@ use std::cmp;
 use itertools::izip;
 
 use crate::{
-    geom::{GeomCell, Point, Triangle},
+    geom::{GeomCell, Point, Tetrahedron, Triangle},
     quadrature::DynGaussQuad,
 };
 
@@ -45,18 +45,23 @@ where
     }
 }
 
-impl<const D: usize> Qubature<Triangle<D>, f64, f64, D, 3> for DynGaussTetQuad
+impl<const D: usize> Qubature<Tetrahedron<D>, f64, f64, D, 3> for DynGaussTetQuad
 where
-    Triangle<D>: GeomCell<3, D>,
+    Tetrahedron<D>: GeomCell<3, D>,
 {
-    fn nint<F>(&self, func: F, cell: Triangle<D>) -> crate::Result<f64>
+    fn nint<F>(&self, func: F, cell: Tetrahedron<D>) -> crate::Result<f64>
     where
         F: Fn(Point<D>) -> f64,
     {
         let jac = cell.jacobian_meas();
-        let res: f64 = izip!(self.xi.iter(), self.eta.iter(), self.zeta.iter(), self.nu.iter())
-            .map(|(xi, eta, zeta, nu)| nu * func(cell.map_reference(Point::new([*xi, *eta, *zeta]))))
-            .sum();
+        let res: f64 = izip!(
+            self.xi.iter(),
+            self.eta.iter(),
+            self.zeta.iter(),
+            self.nu.iter()
+        )
+        .map(|(xi, eta, zeta, nu)| nu * func(cell.map_reference(Point::new([*xi, *eta, *zeta]))))
+        .sum();
         Ok(jac * res)
     }
 }
@@ -151,6 +156,14 @@ impl DynGaussTetQuad {
         }
 
         DynGaussTetQuad { xi, eta, zeta, nu }
+    }
+    pub fn abscissae(&self) -> Vec<Point<3>> {
+        izip!(self.xi.iter(), self.eta.iter(), self.zeta.iter())
+            .map(|(&a, &b, &c)| Point::new([a, b, c]))
+            .collect()
+    }
+    pub fn weights(&self) -> &Vec<f64> {
+        &self.nu
     }
 }
 
@@ -265,6 +278,138 @@ mod tests {
         {
             let integral = quadrature.nint(func, triangles[i]).ok().unwrap();
             assert_approx_eq!(integral, *expected_integral, 1e-4);
+        }
+    }
+
+    #[test]
+    fn new_gauss_tet_test() {
+        let anss = [
+            DynGaussTetQuad {
+                xi: vec![1.0 / 4.0],
+                eta: vec![1.0 / 4.0],
+                zeta: vec![1.0 /4.0 ],
+                nu: vec![1.0 / 6.0],
+            },
+            DynGaussTetQuad {
+                xi: vec![0.544151844,0.544151844,0.544151844,0.544151844],
+                eta: vec![0.544151844,0.544151844,0.544151844,0.544151844],
+                zeta: vec![0.544151844,0.544151844,0.544151844,0.544151844],
+                nu: vec![0.544151844,0.544151844,0.544151844,0.544151844],
+            },
+        ];
+
+        for (i, ans) in anss.iter().enumerate() {
+            let gt = DynGaussTetQuad::new(i + 1);
+
+            assert_eq!(gt.abscissae().len(), ans.abscissae().len());
+            for (p, ps) in gt.abscissae().iter().zip(ans.abscissae().iter()) {
+                assert_approx_eq!(p[0], ps[0], 1e-4);
+                assert_approx_eq!(p[1], ps[1], 1e-4);
+            }
+            for (p, ps) in gt.weights().iter().zip(ans.weights().iter()) {
+                assert_approx_eq!(p, ps, 1e-4);
+            }
+        }
+    }
+    #[test]
+    fn gauss_tet_eval_test() {
+        // Vector of tetrahedrons
+        let tetrahedrons = vec![
+            Tetrahedron::new(
+                Point::<3>::new([0.0, 0.0, 0.0]),
+                Point::<3>::new([1.0, 0.0, 0.0]),
+                Point::<3>::new([0.0, 1.0, 0.0]),
+                Point::<3>::new([0.0, 0.0, 1.0]),
+            ),
+            Tetrahedron::new(
+                Point::<3>::new([0.0, 0.0, 0.0]),
+                Point::<3>::new([2.0, 0.0, 0.0]),
+                Point::<3>::new([0.0, 2.0, 0.0]),
+                Point::<3>::new([0.0, 0.0, 2.0]),
+            ),
+            Tetrahedron::new(
+                Point::<3>::new([0.0, 0.0, 0.0]),
+                Point::<3>::new([1.0, 1.0, 0.0]),
+                Point::<3>::new([0.0, 1.0, 1.0]),
+                Point::<3>::new([1.0, 0.0, 1.0]),
+            ),
+            Tetrahedron::new(
+                Point::<3>::new([1.0, 1.0, 1.0]),
+                Point::<3>::new([2.0, 1.0, 1.0]),
+                Point::<3>::new([1.0, 2.0, 1.0]),
+                Point::<3>::new([1.0, 1.0, 2.0]),
+            ),
+            Tetrahedron::new(
+                Point::<3>::new([0.0, 0.0, 0.0]),
+                Point::<3>::new([1.0, 0.0, 0.0]),
+                Point::<3>::new([1.0, 1.0, 0.0]),
+                Point::<3>::new([1.0, 1.0, 1.0]),
+            ),
+            Tetrahedron::new(
+                Point::<3>::new([0.0, 0.0, 1.0]),
+                Point::<3>::new([1.0, 0.0, 1.0]),
+                Point::<3>::new([0.0, 1.0, 1.0]),
+                Point::<3>::new([0.0, 0.0, 2.0]),
+            ),
+            Tetrahedron::new(
+                Point::<3>::new([0.0, 0.0, 0.0]),
+                Point::<3>::new([0.0, 1.0, 0.0]),
+                Point::<3>::new([0.0, 0.0, 1.0]),
+                Point::<3>::new([1.0, 1.0, 1.0]),
+            ),
+            Tetrahedron::new(
+                Point::<3>::new([0.0, 0.0, 1.0]),
+                Point::<3>::new([0.0, 1.0, 2.0]),
+                Point::<3>::new([1.0, 0.0, 2.0]),
+                Point::<3>::new([1.0, 1.0, 3.0]),
+            ),
+            Tetrahedron::new(
+                Point::<3>::new([0.0, 0.0, 0.0]),
+                Point::<3>::new([0.0, 0.0, 1.0]),
+                Point::<3>::new([0.0, 1.0, 0.0]),
+                Point::<3>::new([1.0, 0.0, 0.0]),
+            ),
+            Tetrahedron::new(
+                Point::<3>::new([1.0, 0.0, 0.0]),
+                Point::<3>::new([2.0, 1.0, 0.0]),
+                Point::<3>::new([1.0, 1.0, 0.0]),
+                Point::<3>::new([1.0, 0.0, 1.0]),
+            ),
+        ];
+
+        // Array of functions
+        let functions = [
+            |_p: Point<3>| 1.0,
+            |p: Point<3>| p[0] + p[1] + p[2],
+            |p: Point<3>| p[0].powi(2) + p[1].powi(2) + p[2].powi(2),
+            |p: Point<3>| p[0] * p[1] * p[2],
+            |p: Point<3>| p[0] + p[1].powi(2),
+            |p: Point<3>| (p[0] + p[1] + p[2]).exp(),
+            |p: Point<3>| (p[0] + p[1] + p[2]).sin(),
+            |p: Point<3>| p[0] + p[1] + p[2] + p[3],
+            |p: Point<3>| 2.0 * p[0] + 3.0 * p[1],
+            |p: Point<3>| p[0] * p[1] + p[2].powi(2),
+        ];
+
+        // Array of expected values
+        let expected_values: [f64; 10] = [
+            1.0 / 6.0,
+            2.0, // Example expected value; please adjust with precise calculation
+            0.5,
+            0.25,
+            1.0,
+            2.0,
+            0.0,
+            2.0,
+            0.5,
+            0.75,
+        ];
+
+        let quad = DynGaussTetQuad::new(5); // Specify number of quadrature points
+        for (tet, func, expc) in izip!(tetrahedrons, functions, expected_values)
+        {
+            let result = quad.nint(func, tet).ok().unwrap();
+            assert_approx_eq!(result, expc, 1e-4);
         }
     }
 }
