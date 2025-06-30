@@ -5,7 +5,7 @@ use super::Quadrature;
 
 /// Standard Gaussian quadrature for intervals [a, b], with q points.
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
-pub struct GaussQuadrature {
+pub struct DynGaussQuad {
     a: f64,
     b: f64,
     q: usize,
@@ -13,7 +13,17 @@ pub struct GaussQuadrature {
     weights: Vec<f64>,
 }
 
-impl GaussQuadrature {
+/// Constant gaussian quadrature. Gives
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+pub struct GaussQuad<const Q: usize> {
+    a: f64,
+    b: f64,
+    q: usize,
+    abscissae: [f64; Q],
+    weights: [f64; Q],
+}
+
+impl DynGaussQuad {
 
     /// Returns the configured interval of the quadrature
     pub fn interval(&self) -> (f64, f64) {
@@ -104,7 +114,7 @@ impl<
             + ops::Sub<O, Output = O>
             + num_complex::ComplexFloat
             + iter::Sum,
-    > Quadrature<I, O> for GaussQuadrature
+    > Quadrature<I, O> for DynGaussQuad
 {
     const DEFAULTN: usize = 24;
     fn nint<F>(&self, func: F, start: Option<I>, end: Option<I>, _: usize) -> crate::Result<O>
@@ -157,7 +167,7 @@ mod tests {
                 vec![-0.90618, -0.538469, 0.0, 0.538469, 0.90618],
             ),
         ];
-        let testers = (1..anss.len()).map(|x| GaussQuadrature::gausslegendre(-1.0, 1.0, x));
+        let testers = (1..anss.len()).map(|x| DynGaussQuad::gausslegendre(-1.0, 1.0, x));
 
         for (test, ans) in testers.zip(anss) {
             assert_eq!(test.npoints(), test.abscissae().len());
@@ -189,7 +199,7 @@ mod tests {
                 vec![0.04691, 0.230765, 0.5, 0.769235, 0.95309],
             ),
         ];
-        let testers = (1..anss.len()).map(|x| GaussQuadrature::gausslegendre(0.0, 1.0, x));
+        let testers = (1..anss.len()).map(|x| DynGaussQuad::gausslegendre(0.0, 1.0, x));
 
         for (test, ans) in testers.zip(anss) {
             assert_eq!(test.npoints(), test.abscissae().len());
@@ -253,7 +263,7 @@ let functions: &[fn(f64) -> f64] = &[
 
 
         // Create a Gauss-Legendre quadrature for integrating on the interval [a, b].
-        let rule = GaussQuadrature::gausslegendre(a, b, q);
+        let rule = DynGaussQuad::gausslegendre(a, b, q);
 
         for (func, (a, b), res) in izip!(functions, intervals, expected_results) {
             let ans = rule.nint(func, Some(*a), Some(*b), 24).ok().unwrap();
@@ -268,7 +278,7 @@ let functions: &[fn(f64) -> f64] = &[
         let q = 5; // Number of abscissas
 
         // Create a Gauss-Legendre quadrature for integrating on the interval [a, b].
-        let gauss_quad = GaussQuadrature::gausslegendre(a, b, q);
+        let gauss_quad = DynGaussQuad::gausslegendre(a, b, q);
 
         // Test integration of a function f(x) = e^(i * x) over [0, π].
         let result = gauss_quad

@@ -4,7 +4,7 @@ use itertools::izip;
 
 use crate::{
     geom::{GeomCell, Point, Triangle},
-    quadrature::GaussQuadrature,
+    quadrature::DynGaussQuad,
 };
 
 /// General N-dimensional quadrature (N > 1)
@@ -71,7 +71,7 @@ impl DynGaussTriQuad {
             };
         }
 
-        let gl = GaussQuadrature::gausslegendre(0.0, 1.0, q);
+        let gl = DynGaussQuad::gausslegendre(0.0, 1.0, q);
 
         let x = gl.abscissae();
         let w1 = gl.weights();
@@ -83,7 +83,7 @@ impl DynGaussTriQuad {
         for j in 1..q {
             let qj = cmp::max(2, (x[j] / x[q - 1] * (q as f64)).ceil() as usize);
 
-            let gl = GaussQuadrature::gausslegendre(0.0, 1.0, qj);
+            let gl = DynGaussQuad::gausslegendre(0.0, 1.0, qj);
 
             let yj = gl.abscissae().iter().map(|&a| x[j] * a);
             let wj = gl.weights().iter().map(|&a| x[j] * a);
@@ -120,7 +120,7 @@ impl DynGaussTetQuad {
             };
         }
 
-        let gl = GaussQuadrature::gausslegendre(0.0, 1.0, q);
+        let gl = DynGaussQuad::gausslegendre(0.0, 1.0, q);
 
         let x = gl.abscissae();
         let w1 = gl.weights();
@@ -132,14 +132,14 @@ impl DynGaussTetQuad {
 
         for i in 0..q {
             let qi = f64::max(2.0, f64::ceil(x[i] / x[q - 1] * (q as f64)));
-            let gl = GaussQuadrature::gausslegendre(0.0, 1.0, qi as usize);
+            let gl = DynGaussQuad::gausslegendre(0.0, 1.0, qi as usize);
 
             let y = gl.abscissae();
             let w2 = gl.weights();
             for j in 0..qi as usize {
                 eta.push(x[i] * y[j]);
                 let qij = f64::max(2.0, f64::ceil(eta[eta.len() - 1] / x[q - 1] * (q as f64)));
-                let gl = GaussQuadrature::gausslegendre(0.0, 1.0, qij as usize);
+                let gl = DynGaussQuad::gausslegendre(0.0, 1.0, qij as usize);
 
                 let z = gl.abscissae();
                 let w3 = gl.weights();

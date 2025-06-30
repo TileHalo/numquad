@@ -1,5 +1,6 @@
 use itertools::{EitherOrBoth, Itertools};
 use std::ops;
+
 /// Generates Legendre polynomials up to (and including) of order Q
 pub fn generate_legendre(q: usize) -> Vec<Polynomial<f64>> {
     let mut poly = vec![Polynomial::default(); q + 1];
@@ -20,9 +21,13 @@ pub fn generate_legendre(q: usize) -> Vec<Polynomial<f64>> {
             prev = elem.clone();
         }
     }
-
     poly
 }
+
+
+/// Constant polynomial for faster evaluation purposes
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+pub struct ConstPolynomial<const Q: usize>([f64; Q]);
 
 /// Generic one-dimensional polynomial, either
 #[derive(Debug, Clone, Default, PartialEq)]

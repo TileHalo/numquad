@@ -4,7 +4,7 @@
 //! desired or not.
 
 pub mod gauss;
-pub use gauss::GaussQuadrature;
+pub use gauss::DynGaussQuad;
 
 /// Trait that all quadrature rules implement. All quadratures blanket implement the (`Integral`)[`super::Integral`]
 /// trait
