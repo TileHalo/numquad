@@ -14,13 +14,22 @@ pub trait Qubature<A: GeomCell<M, D>, I, O, const D: usize, const M: usize> {
         F: Fn(Point<D>) -> O;
 }
 
-pub struct GaussTriQuadrature {
+#[derive(Debug, Clone)]
+pub struct DynGaussTriQuad {
     xi: Vec<f64>,
     eta: Vec<f64>,
     nu: Vec<f64>,
 }
 
-impl<const D: usize> Qubature<Triangle<D>, f64, f64, D, 2> for GaussTriQuadrature
+#[derive(Debug, Clone)]
+pub struct DynGaussTetQuad {
+    xi: Vec<f64>,
+    eta: Vec<f64>,
+    zeta: Vec<f64>,
+    nu: Vec<f64>,
+}
+
+impl<const D: usize> Qubature<Triangle<D>, f64, f64, D, 2> for DynGaussTriQuad
 where
     Triangle<D>: GeomCell<2, D>,
 {
@@ -36,10 +45,26 @@ where
     }
 }
 
-impl GaussTriQuadrature {
+impl<const D: usize> Qubature<Triangle<D>, f64, f64, D, 3> for DynGaussTetQuad
+where
+    Triangle<D>: GeomCell<3, D>,
+{
+    fn nint<F>(&self, func: F, cell: Triangle<D>) -> crate::Result<f64>
+    where
+        F: Fn(Point<D>) -> f64,
+    {
+        let jac = cell.jacobian_meas();
+        let res: f64 = izip!(self.xi.iter(), self.eta.iter(), self.zeta.iter(), self.nu.iter())
+            .map(|(xi, eta, zeta, nu)| nu * func(cell.map_reference(Point::new([*xi, *eta, *zeta]))))
+            .sum();
+        Ok(jac * res)
+    }
+}
+
+impl DynGaussTriQuad {
     pub fn new(q: usize) -> Self {
         if q == 1 {
-            return GaussTriQuadrature {
+            return DynGaussTriQuad {
                 xi: vec![1.0 / 3.0],
                 eta: vec![1.0 / 3.0],
                 nu: vec![0.5],
@@ -69,7 +94,7 @@ impl GaussTriQuadrature {
                 nu.push(w1[j] * w);
             }
         }
-        GaussTriQuadrature { xi, eta, nu }
+        DynGaussTriQuad { xi, eta, nu }
     }
 
     pub fn abscissae(&self) -> Vec<Point<2>> {
@@ -84,6 +109,51 @@ impl GaussTriQuadrature {
     }
 }
 
+impl DynGaussTetQuad {
+    pub fn new(q: usize) -> Self {
+        if q == 1 {
+            return DynGaussTetQuad {
+                xi: vec![1.0 / 4.0],
+                eta: vec![1.0 / 4.0],
+                zeta: vec![1.0 / 4.0],
+                nu: vec![1.0 / 6.0],
+            };
+        }
+
+        let gl = GaussQuadrature::gausslegendre(0.0, 1.0, q);
+
+        let x = gl.abscissae();
+        let w1 = gl.weights();
+
+        let xi = x.iter().map(|&a| 1.0 - a).collect();
+        let mut eta = Vec::new();
+        let mut zeta = Vec::new();
+        let mut nu = Vec::new();
+
+        for i in 0..q {
+            let qi = f64::max(2.0, f64::ceil(x[i] / x[q - 1] * (q as f64)));
+            let gl = GaussQuadrature::gausslegendre(0.0, 1.0, qi as usize);
+
+            let y = gl.abscissae();
+            let w2 = gl.weights();
+            for j in 0..qi as usize {
+                eta.push(x[i] * y[j]);
+                let qij = f64::max(2.0, f64::ceil(eta[eta.len() - 1] / x[q - 1] * (q as f64)));
+                let gl = GaussQuadrature::gausslegendre(0.0, 1.0, qij as usize);
+
+                let z = gl.abscissae();
+                let w3 = gl.weights();
+                for k in 0..qij as usize {
+                    zeta.push(eta[eta.len() - 1] * z[k]);
+                    nu.push(w1[i] * w2[j] * w3[k] * eta[eta.len() - 1]);
+                }
+            }
+        }
+
+        DynGaussTetQuad { xi, eta, zeta, nu }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -92,22 +162,22 @@ mod tests {
     #[test]
     fn new_gausstri_test() {
         let anss = [
-            GaussTriQuadrature {
+            DynGaussTriQuad {
                 xi: vec![1.0 / 3.0],
                 eta: vec![1.0 / 3.0],
                 nu: vec![0.5],
             },
-            GaussTriQuadrature {
+            DynGaussTriQuad {
                 xi: vec![0.7887, 0.2113, 0.2113],
                 eta: vec![0.1057, 0.1667, 0.6220],
                 nu: vec![0.1057, 0.1972, 0.1972],
             },
-            GaussTriQuadrature {
+            DynGaussTriQuad {
                 xi: vec![0.8873, 0.5, 0.5, 0.1127, 0.1127, 0.1127],
                 eta: vec![0.056351, 0.1055625, 0.394338, 0.1, 0.443649, 0.787298],
                 nu: vec![0.031306, 0.111111, 0.111111, 0.068464, 0.109543],
             },
-            GaussTriQuadrature {
+            DynGaussTriQuad {
                 xi: vec![
                     0.930568, 0.66991, 0.66991, 0.330009, 0.330009, 0.330009, 0.069432, 0.069432,
                     0.069432, 0.069432,
@@ -124,7 +194,7 @@ mod tests {
         ];
 
         for (i, ans) in anss.iter().enumerate() {
-            let gt = GaussTriQuadrature::new(i + 1);
+            let gt = DynGaussTriQuad::new(i + 1);
 
             for (p, ps) in gt.abscissae().iter().zip(ans.abscissae().iter()) {
                 assert_approx_eq!(p[0], ps[0], 1e-4);
@@ -138,7 +208,7 @@ mod tests {
 
     #[test]
     fn gauss_tri_eval_test() {
-        let quadrature = GaussTriQuadrature::new(5);
+        let quadrature = DynGaussTriQuad::new(5);
 
         let triangles = vec![
             Triangle::new(
@@ -188,15 +258,7 @@ mod tests {
             |p: Point<2>| p[0].powi(2) + p[1],
         ];
 
-        let expected_integrals = [
-            1.0 / 3.0,
-            2.0,
-            0.1667,
-            0.9167,
-            -0.2083,
-            1.75,
-            6.4999,
-        ];
+        let expected_integrals = [1.0 / 3.0, 2.0, 0.1667, 0.9167, -0.2083, 1.75, 6.4999];
 
         for (i, (func, expected_integral)) in
             functions.iter().zip(expected_integrals.iter()).enumerate()
