@@ -39,9 +39,9 @@ Currently used and planned quadratures are:
     - [ ] Gauss-Hermite
  - [x] Gauss-Legendre
      - [x] Real line
-     - [ ] Triangle
+     - [x] Triangle
      - [ ] Quadrilateral
-     - [ ] Tetrahedron
+     - [x] Tetrahedron
      - [ ] Hexahedron
  - [x] Michalski-Mosig $\tanh\sinh$
  - [x] Michalski-Mosig $\exp\sinh$ (semi-infinite interval)
