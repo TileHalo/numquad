@@ -125,37 +125,28 @@ impl DynGaussTetQuad {
             };
         }
 
-        let gl = DynGaussQuad::gausslegendre(0.0, 1.0, q);
+        let gl = DynGaussQuad::gausslegendre(-1.0, 1.0, q);
 
         let x = gl.abscissae();
-        let w1 = gl.weights();
+        let w = gl.weights();
 
-        let xi = x.iter().map(|&a| 1.0 - a).collect();
-        let mut eta = Vec::new();
-        let mut zeta = Vec::new();
-        let mut nu = Vec::new();
+        let mut xi = Vec::with_capacity(q.pow(3));
+        let mut eta = Vec::with_capacity(q.pow(3));
+        let mut zeta = Vec::with_capacity(q.pow(3));
+        let mut nu = Vec::with_capacity(q.pow(3));
 
         for i in 0..q {
-            let qi = f64::max(2.0, f64::ceil(x[i] / x[q - 1] * (q as f64)));
-            let gl = DynGaussQuad::gausslegendre(0.0, 1.0, qi as usize);
-
-            let y = gl.abscissae();
-            let w2 = gl.weights();
-            for j in 0..qi as usize {
-                eta.push(x[i] * y[j]);
-                let qij = f64::max(2.0, f64::ceil(eta[eta.len() - 1] / x[q - 1] * (q as f64)));
-                let gl = DynGaussQuad::gausslegendre(0.0, 1.0, qij as usize);
-
-                let z = gl.abscissae();
-                let w3 = gl.weights();
-                for k in 0..qij as usize {
-                    zeta.push(eta[eta.len() - 1] * z[k]);
-                    nu.push(w1[i] * w2[j] * w3[k] * eta[eta.len() - 1]);
+            for j in 0..q {
+                for k in 0..q {
+                    xi.push((1.0 + x[i])/2.0);
+                    eta.push((1.0 - x[i]) * (1.0 + x[j])/4.0);
+                    zeta.push((1.0 - x[i]) * (1.0 - x[j]) * (1.0 + x[k]) /8.0);
+                    nu.push(w[i] * w[j] * w[k] * (1.0 - x[i]).powi(2) * (1.0 - x[j]) / 64.0);
                 }
             }
         }
 
-        DynGaussTetQuad { xi, eta, zeta, nu }
+        Self { xi, eta, zeta, nu }
     }
     pub fn abscissae(&self) -> Vec<Point<3>> {
         izip!(self.xi.iter(), self.eta.iter(), self.zeta.iter())
@@ -287,14 +278,50 @@ mod tests {
             DynGaussTetQuad {
                 xi: vec![1.0 / 4.0],
                 eta: vec![1.0 / 4.0],
-                zeta: vec![1.0 /4.0 ],
+                zeta: vec![1.0 / 4.0],
                 nu: vec![1.0 / 6.0],
             },
             DynGaussTetQuad {
-                xi: vec![0.544151844,0.544151844,0.544151844,0.544151844],
-                eta: vec![0.544151844,0.544151844,0.544151844,0.544151844],
-                zeta: vec![0.544151844,0.544151844,0.544151844,0.544151844],
-                nu: vec![0.544151844,0.544151844,0.544151844,0.544151844],
+                xi: vec![
+                    0.211324865405187,
+                    0.211324865405187,
+                    0.211324865405187,
+                    0.211324865405187,
+                    0.788675134594813,
+                    0.788675134594813,
+                    0.788675134594813,
+                    0.788675134594813,
+                ],
+                eta: vec![
+                    1.0 / 6.0,
+                    1.0 / 6.0,
+                    0.622008467928146,
+                    0.622008467928146,
+                    0.04465819873852,
+                    0.04465819873852,
+                    1.0 / 6.0,
+                    1.0 / 6.0,
+                ],
+                zeta: vec![
+                    0.131445855765802,
+                    0.490562612162344,
+                    0.035220810900864,
+                    0.131445855765802,
+                    0.035220810900864,
+                    0.131445855765802,
+                    0.009437387837656,
+                    0.035220810900864,
+                ],
+                nu: vec![
+                    0.061320326520293,
+                    0.061320326520293,
+                    0.016430731970725,
+                    0.016430731970725,
+                    0.004402601362608,
+                    0.004402601362608,
+                    0.001179673479707,
+                    0.001179673479707,
+                ],
             },
         ];
 
@@ -314,7 +341,7 @@ mod tests {
     #[test]
     fn gauss_tet_eval_test() {
         // Vector of tetrahedrons
-        let tetrahedrons = vec![
+        let tetrahedrons = [
             Tetrahedron::new(
                 Point::<3>::new([0.0, 0.0, 0.0]),
                 Point::<3>::new([1.0, 0.0, 0.0]),
@@ -323,93 +350,60 @@ mod tests {
             ),
             Tetrahedron::new(
                 Point::<3>::new([0.0, 0.0, 0.0]),
-                Point::<3>::new([2.0, 0.0, 0.0]),
-                Point::<3>::new([0.0, 2.0, 0.0]),
-                Point::<3>::new([0.0, 0.0, 2.0]),
-            ),
-            Tetrahedron::new(
-                Point::<3>::new([0.0, 0.0, 0.0]),
-                Point::<3>::new([1.0, 1.0, 0.0]),
-                Point::<3>::new([0.0, 1.0, 1.0]),
-                Point::<3>::new([1.0, 0.0, 1.0]),
-            ),
-            Tetrahedron::new(
-                Point::<3>::new([1.0, 1.0, 1.0]),
-                Point::<3>::new([2.0, 1.0, 1.0]),
-                Point::<3>::new([1.0, 2.0, 1.0]),
-                Point::<3>::new([1.0, 1.0, 2.0]),
-            ),
-            Tetrahedron::new(
-                Point::<3>::new([0.0, 0.0, 0.0]),
                 Point::<3>::new([1.0, 0.0, 0.0]),
-                Point::<3>::new([1.0, 1.0, 0.0]),
-                Point::<3>::new([1.0, 1.0, 1.0]),
-            ),
-            Tetrahedron::new(
-                Point::<3>::new([0.0, 0.0, 1.0]),
-                Point::<3>::new([1.0, 0.0, 1.0]),
-                Point::<3>::new([0.0, 1.0, 1.0]),
-                Point::<3>::new([0.0, 0.0, 2.0]),
-            ),
-            Tetrahedron::new(
-                Point::<3>::new([0.0, 0.0, 0.0]),
                 Point::<3>::new([0.0, 1.0, 0.0]),
                 Point::<3>::new([0.0, 0.0, 1.0]),
-                Point::<3>::new([1.0, 1.0, 1.0]),
-            ),
-            Tetrahedron::new(
-                Point::<3>::new([0.0, 0.0, 1.0]),
-                Point::<3>::new([0.0, 1.0, 2.0]),
-                Point::<3>::new([1.0, 0.0, 2.0]),
-                Point::<3>::new([1.0, 1.0, 3.0]),
             ),
             Tetrahedron::new(
                 Point::<3>::new([0.0, 0.0, 0.0]),
-                Point::<3>::new([0.0, 0.0, 1.0]),
-                Point::<3>::new([0.0, 1.0, 0.0]),
                 Point::<3>::new([1.0, 0.0, 0.0]),
+                Point::<3>::new([0.0, 1.0, 0.0]),
+                Point::<3>::new([0.0, 0.0, 1.0]),
             ),
             Tetrahedron::new(
+                Point::<3>::new([0.0, 0.0, 0.0]),
                 Point::<3>::new([1.0, 0.0, 0.0]),
-                Point::<3>::new([2.0, 1.0, 0.0]),
-                Point::<3>::new([1.0, 1.0, 0.0]),
-                Point::<3>::new([1.0, 0.0, 1.0]),
+                Point::<3>::new([0.0, 1.0, 0.0]),
+                Point::<3>::new([0.0, 0.0, 1.0]),
+            ),
+            Tetrahedron::new(
+                Point::<3>::new([5.0, 5.0, 0.0]),
+                Point::<3>::new([10.0, 10.0, 0.0]),
+                Point::<3>::new([8.0, 7.0, 8.0]),
+                Point::<3>::new([10.0, 5.0, 0.0]),
+            ),
+            Tetrahedron::new(
+                Point::<3>::new([5.0, 5.0, 0.0]),
+                Point::<3>::new([10.0, 10.0, 0.0]),
+                Point::<3>::new([8.0, 7.0, 8.0]),
+                Point::<3>::new([10.0, 5.0, 0.0]),
             ),
         ];
 
         // Array of functions
         let functions = [
             |_p: Point<3>| 1.0,
-            |p: Point<3>| p[0] + p[1] + p[2],
-            |p: Point<3>| p[0].powi(2) + p[1].powi(2) + p[2].powi(2),
-            |p: Point<3>| p[0] * p[1] * p[2],
-            |p: Point<3>| p[0] + p[1].powi(2),
-            |p: Point<3>| (p[0] + p[1] + p[2]).exp(),
-            |p: Point<3>| (p[0] + p[1] + p[2]).sin(),
-            |p: Point<3>| p[0] + p[1] + p[2] + p[3],
-            |p: Point<3>| 2.0 * p[0] + 3.0 * p[1],
-            |p: Point<3>| p[0] * p[1] + p[2].powi(2),
+            |p: Point<3>| f64::sqrt(p[0] + p[1] + p[2]),
+            |p: Point<3>| 1.0/f64::sqrt(p[0] + p[1] + p[2]),
+            |p: Point<3>| 1.0/f64::sqrt((1.0 - p[0] - p[1]).powi(2) + p[2].powi(2)),
+            |p: Point<3>| p[0].powi(2)*p[1],
+            |p: Point<3>| p[0].powi(2)*p[1].powi(2),
         ];
 
         // Array of expected values
-        let expected_values: [f64; 10] = [
+        let expected_values = [
             1.0 / 6.0,
-            2.0, // Example expected value; please adjust with precise calculation
-            0.5,
-            0.25,
-            1.0,
-            2.0,
-            0.0,
-            2.0,
-            0.5,
-            0.75,
+            0.142857142857143,
+            0.2,
+            0.440686793509772,
+            15721.66666666667,
+            109662.063492063,
         ];
 
         let quad = DynGaussTetQuad::new(5); // Specify number of quadrature points
-        for (tet, func, expc) in izip!(tetrahedrons, functions, expected_values)
-        {
+        for (tet, func, expc) in izip!(tetrahedrons, functions, expected_values) {
             let result = quad.nint(func, tet).ok().unwrap();
-            assert_approx_eq!(result, expc, 1e-4);
+            assert_approx_eq!(result, expc, 5e-5);
         }
     }
 }
