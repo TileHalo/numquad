@@ -14,6 +14,7 @@ pub trait Qubature<A: GeomCell<M, D>, I, O, const D: usize, const M: usize> {
         F: Fn(Point<D>) -> O;
 }
 
+/// Dynamic gaussian qubature for triangles
 #[derive(Debug, Clone)]
 pub struct DynGaussTriQuad {
     xi: Vec<f64>,
@@ -21,6 +22,7 @@ pub struct DynGaussTriQuad {
     nu: Vec<f64>,
 }
 
+/// Dynamic gaussian qubature for tetrahedrons
 #[derive(Debug, Clone)]
 pub struct DynGaussTetQuad {
     xi: Vec<f64>,
@@ -67,6 +69,7 @@ where
 }
 
 impl DynGaussTriQuad {
+    /// Gauss-Legendre nested quadrature rule
     pub fn new(q: usize) -> Self {
         if q == 1 {
             return DynGaussTriQuad {
@@ -102,6 +105,7 @@ impl DynGaussTriQuad {
         DynGaussTriQuad { xi, eta, nu }
     }
 
+    /// Abscissae of the rule
     pub fn abscissae(&self) -> Vec<Point<2>> {
         self.xi
             .iter()
@@ -109,12 +113,15 @@ impl DynGaussTriQuad {
             .map(|(&a, &b)| Point::new([a, b]))
             .collect()
     }
+
+    /// Weights of the rule
     pub fn weights(&self) -> &Vec<f64> {
         &self.nu
     }
 }
 
 impl DynGaussTetQuad {
+    /// New Gauss-Legendre for tetrahedrons.
     pub fn new(q: usize) -> Self {
         if q == 1 {
             return DynGaussTetQuad {

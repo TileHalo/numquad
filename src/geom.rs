@@ -4,7 +4,8 @@ use num::Complex;
 
 use std::{iter, ops};
 
-/// An basic geometry shape/cell.
+/// An basic geometry shape/cell. Any simplex that can be used as integration domain must implement
+/// this
 pub trait GeomCell<const N: usize, const M: usize> {
     type REFT;
     /// Reference cell
@@ -49,7 +50,7 @@ pub const REFERENCE_TETRAHEDRON: Tetrahedron<3> = Tetrahedron(
 );
 
 impl<T, const D: usize> Vector<T, D> {
-    /// Build new vector based on
+    /// Build new vector based on input array
     pub fn new(a: [T; D]) -> Self {
         Vector(a)
     }

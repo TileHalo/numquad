@@ -8,13 +8,14 @@ pub mod quadrature;
 pub mod qubature;
 
 
+/// General integration trait. Any object that performs integration must implement this trait.
 pub trait Integral<I, O> {
     fn integrate<F>(&self, func: F, a: Option<I>, b: Option<I>) -> Result<O>
     where
         F: Fn(I) -> O;
 }
 
-/// Internal result type
+/// Integration result type
 pub type Result<T> = std::result::Result<T, IntegrationError>;
 
 /// Various errors that can occur while integrating

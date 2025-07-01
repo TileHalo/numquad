@@ -1,4 +1,4 @@
-//! Numerical quadrature rules.
+//! Numerical quadrature rules for real line intervals.
 //! To use a (generic, non-existent) rule `Rule`, one must first call `Rule::new()`,
 //! and then either use `Rule::nint` or `Rule::integrate` depending if rule modifications are
 //! desired or not.
