@@ -6,7 +6,7 @@ authors = ["Leo Lahti leo.lahti1@gmail.com"]
 description = "Numerical integration quadratures like Gauss-Legendre and Tanh-Sinh"
 repository = "https://github.com/TileHalo/numquad"
 
-license = "MIT or Apache-2.0"
+license = "MIT OR Apache-2.0"
 # Using latex in the docs to display formulas
 [package.metadata.docs.rs]
 rustdoc-args = [ "--html-in-header", "katex-header.html" ]
