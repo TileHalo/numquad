@@ -176,6 +176,13 @@ impl<const D: usize> Triangle<D> {
     pub fn new(a: Point<D>, b: Point<D>, c: Point<D>) -> Self {
         Triangle(a, b, c)
     }
+
+    pub fn lengths(self) -> (f64, f64, f64) {
+        ((self.0 - self.1).norm(), (self.1 - self.2).norm(),(self.2 - self.0).norm())
+    }
+    pub fn vertices(self) -> (Point<D>, Point<D>, Point<D>) {
+        (self.0, self.1, self.2)
+    }
 }
 
 impl<const D: usize> Tetrahedron<D> {
