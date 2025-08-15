@@ -1,6 +1,6 @@
 [package]
 name = "numquad"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 authors = ["Leo Lahti leo.lahti1@gmail.com"]
 description = "Numerical integration quadratures like Gauss-Legendre and Tanh-Sinh"
