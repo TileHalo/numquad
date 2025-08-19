@@ -14,8 +14,9 @@ pub trait GeomCell<const N: usize, const M: usize> {
     fn jacobian_meas(self) -> f64;
     // /// Jacobian measure from arbitrary cell
     // fn jacobian_meas_arb(self, rf: Self) -> f64;
-    /// Map to reference cell
+    /// Map from reference cell
     fn map_reference(self, p: Point<N>) -> Point<M>;
+    fn to_reference(self, p: Point<M>) -> Point<N>;
     // /// Map to arbitrary reference cell
     // fn map_reference_arb(self, p: Point<N>, rf: Self) -> Point<M>;
 }
@@ -171,6 +172,15 @@ where
         ])
     }
 }
+impl<T> Vector<T, 2>
+where
+    T: num::Float,
+{
+    pub fn cross(&self, rhs: &Self) -> T {
+        self[0] * rhs[1] - self[1] * rhs[0]
+    }
+}
+
 
 impl<const D: usize> Triangle<D> {
     pub fn new(a: Point<D>, b: Point<D>, c: Point<D>) -> Self {
@@ -215,6 +225,13 @@ impl GeomCell<2, 2> for Triangle<2> {
     fn map_reference(self, p: Point<2>) -> Point<2> {
         self.0 + (self.1 - self.0) * p[0] + (self.2 - self.0) * p[1]
     }
+    fn to_reference(self, p: Point<2>) -> Point<2> {
+            let v0 = self.1 - self.0;
+            let v1 = self.2 - self.0;
+            let vr = p - self.0;
+            let a = v0.cross(&v1);
+            Point::new([vr.cross(&v1)/a, v0.cross(&vr)/a])
+    }
 }
 
 impl GeomCell<2, 3> for Triangle<3> {
@@ -234,6 +251,16 @@ impl GeomCell<2, 3> for Triangle<3> {
     /// Map to reference cell
     fn map_reference(self, p: Point<2>) -> Point<3> {
         self.0 + (self.1 - self.0) * p[0] + (self.2 - self.0) * p[1]
+    }
+    fn to_reference(self, p: Point<3>) -> Point<2> {
+        let v0 = self.1 - self.0;
+        let v1 = self.2 - self.0;
+        let vr = p - self.0;
+        let v2 = vr.cross(&v1);
+        let n = v0.cross(&v1);
+
+        Point::new([vr.dot(&n)/v0.dot(&n), v2.dot(&n)/v0.dot(&n)])
+
     }
 }
 
@@ -269,6 +296,17 @@ impl GeomCell<3, 3> for Tetrahedron<3> {
 
     fn map_reference(self, p: Point<3>) -> Point<3> {
         self.1 * p[0] + self.2 * p[1] + self.3 * p[2] + self.0 * (1.0 - p[1] - p[2] - p[0])
+    }
+
+    fn to_reference(self, p: Point<3>) -> Point<3> {
+        let v0 = self.1 - self.0;
+        let v1 = self.2 - self.0;
+        let v2 = self.3 - self.0;
+        let vr = p - self.0;
+        let v = v0.dot(&v1.cross(&v2));
+
+        Point::new([vr.dot(&v1.cross(&v2))/v, v0.dot(&vr.cross(&v2))/v, v0.dot(&v1.cross(&vr))/v])
+
     }
 }
 
@@ -642,6 +680,76 @@ mod tests {
         }
     }
 
+    #[test]
+    fn to_reference_tri_test() {
+        let triangles_2d = [
+            Triangle(
+                Point::new([0.0, 0.0]),
+                Point::new([1.0, 0.0]),
+                Point::new([0.0, 1.0]),
+            ),
+            Triangle(
+                Point::new([0.0, 0.0]),
+                Point::new([2.0, 0.0]),
+                Point::new([0.0, 2.0]),
+            ),
+            Triangle(
+                Point::new([0.0, 0.0]),
+                Point::new([1.0, 1.0]),
+                Point::new([-1.0, 1.0]),
+            ),
+            Triangle(
+                Point::new([1.0, 1.0]),
+                Point::new([2.0, 1.0]),
+                Point::new([1.0, 2.0]),
+            ),
+            Triangle(
+                Point::new([-1.0, 0.0]),
+                Point::new([0.0, 1.0]),
+                Point::new([-1.0, 1.0]),
+            ),
+            Triangle(
+                Point::new([3.0, 0.0]),
+                Point::new([4.0, 0.0]),
+                Point::new([3.0, 1.0]),
+            ),
+            Triangle(
+                Point::new([0.0, 0.0]),
+                Point::new([0.0, 2.0]),
+                Point::new([3.0, 0.0]),
+            ),
+            Triangle(
+                Point::new([1.0, 0.0]),
+                Point::new([1.0, 2.0]),
+                Point::new([3.0, 0.0]),
+            ),
+            Triangle(
+                Point::new([2.0, 1.0]),
+                Point::new([4.0, 1.0]),
+                Point::new([2.0, 3.0]),
+            ),
+            Triangle(
+                Point::new([1.0, 2.0]),
+                Point::new([3.0, 2.0]),
+                Point::new([1.0, 3.0]),
+            ),
+        ];
+
+        for tri in triangles_2d {
+            assert_eq!(
+                Point::new([0.0, 0.0]),
+                Triangle::<2>::to_reference(tri, tri.0)
+            );
+            assert_eq!(
+                Point::new([1.0, 0.0]),
+                Triangle::<2>::to_reference(tri, tri.1)
+            );
+            assert_eq!(
+                Point::new([0.0, 1.0]),
+                Triangle::<2>::to_reference(tri, tri.2)
+            );
+        }
+    }
 
 
 }
